@@ -48,6 +48,10 @@ final class Turrets implements Listener {
         String owner = plugin.store.data.getString("turrets." + id + ".owner");
         return owner == null || owner.equals(p.getUniqueId().toString()) || p.hasPermission("phantomturret.admin");
     }
+    boolean canManage(Player p, Block b) {
+        return plugin.allowed(p) && p.getWorld().equals(b.getWorld()) && Store.loaded(b.getLocation())
+            && p.getLocation().distanceSquared(b.getLocation()) <= 36 && structure(b) && owned(p, Store.id(b));
+    }
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void interact(PlayerInteractEvent e) {
         if (e.getHand() != EquipmentSlot.HAND || !e.getAction().isRightClick() || e.getClickedBlock() == null) return;
@@ -57,12 +61,10 @@ final class Turrets implements Listener {
         ItemStack held = p.getInventory().getItemInMainHand();
         if (held.getType() == Material.ARROW && Items.plain(held)) {
             e.setCancelled(true);
-            int ammo = plugin.store.data.getInt("turrets." + id + ".ammo");
-            int take = Math.min(held.getAmount(), plugin.integer("turrets.ammo-capacity", 256, 1, 4096) - ammo);
+            plugin.ammunition.register(p, b);
+            int take = plugin.ammunition.add(b, held.getAmount());
             if (take <= 0) return;
-            plugin.store.set("turrets." + id + ".location", Store.encode(b.getLocation()));
-            plugin.store.set("turrets." + id + ".owner", p.getUniqueId().toString());
-            plugin.store.set("turrets." + id + ".ammo", ammo + take); plugin.store.save();
+            plugin.store.save();
             held.setAmount(held.getAmount() - take);
         } else if (Items.empty(held)) { e.setCancelled(true); open(p, b); }
     }
@@ -71,18 +73,18 @@ final class Turrets implements Listener {
         if (!plugin.allowed(p) || !structure(b)) return;
         String id = Store.id(b); if (!owned(p, id)) return;
         TurretMenu.Holder h = new TurretMenu.Holder(); h.inventory = Bukkit.createInventory(h, 27, Component.text("Phantom Turret"));
-        int ammo = plugin.store.data.getInt("turrets." + id + ".ammo");
+        int ammo = plugin.ammunition.count(b);
         h.inventory.setItem(11, Items.named(Material.LIGHTNING_ROD, "Phantom Turret", "Ammunition: " + ammo,
-            "Range: " + plugin.decimal("turrets.radius", 24, 1, 64) + " blocks", "Use arrows on the base to reload"));
+            "Range: " + plugin.decimal("turrets.radius", 24, 1, 64) + " blocks", "Click to open 27 ammunition slots"));
+        h.actions.put(11, () -> plugin.ammunition.open(p, b));
         h.inventory.setItem(15, Items.named(Material.ARROW, "Withdraw ammunition", "Click to take up to 64 arrows"));
         h.actions.put(15, () -> {
-            if (!plugin.allowed(p) || !structure(b) || !owned(p, id) || !p.getWorld().equals(b.getWorld())
-                || p.getLocation().distanceSquared(b.getLocation()) > 36) return;
-            int current = plugin.store.data.getInt("turrets." + id + ".ammo"), n = Math.min(current, 64);
+            if (!canManage(p, b)) return;
+            int current = plugin.ammunition.count(b), n = Math.min(current, 64);
             if (n == 0) return;
             ItemStack[] before = TurretMenu.cloneContents(p.getInventory().getStorageContents());
             if (!p.getInventory().addItem(new ItemStack(Material.ARROW, n)).isEmpty()) { p.getInventory().setStorageContents(before); return; }
-            plugin.store.set("turrets." + id + ".ammo", current - n); plugin.store.save(); open(p, b);
+            plugin.ammunition.take(b, n); plugin.store.save(); open(p, b);
         });
         p.openInventory(h.inventory);
     }
@@ -110,7 +112,7 @@ final class Turrets implements Listener {
             if (!Store.loaded(loc) || plugin.getConfig().getStringList("disabled-worlds").contains(loc.getWorld().getName())) continue;
             Block b = loc.getBlock();
             if (!structure(b)) { dismantle(b); continue; }
-            int ammo = plugin.store.data.getInt(path + ".ammo");
+            int ammo = plugin.ammunition.count(b);
             if (ammo <= 0 || nextShot.getOrDefault(id, 0L) > tick) continue;
             Location muzzle = loc.clone().add(.5, 2.1, .5);
             double r = plugin.decimal("turrets.radius", 24, 1, 64);
@@ -122,7 +124,8 @@ final class Turrets implements Listener {
             Vector direction = target.getBoundingBox().getCenter().subtract(muzzle.toVector());
             if (direction.lengthSquared() < .001) continue;
             // Commit ammunition before spawning, so a restart cannot duplicate a fired arrow.
-            plugin.store.set(path + ".ammo", ammo - 1); plugin.store.save();
+            if (plugin.ammunition.take(b, 1) != 1) continue;
+            plugin.store.save();
             Arrow arrow = loc.getWorld().spawnArrow(muzzle, direction.normalize(), (float) plugin.decimal("turrets.arrow-speed", 1.6, .5, 3), 0);
             arrow.getPersistentDataContainer().set(plugin.key("turret_arrow"), PersistentDataType.BYTE, (byte) 1);
             arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED); arrow.setCritical(false);
@@ -152,18 +155,16 @@ final class Turrets implements Listener {
     private void dismantle(Block any) {
         Block b = base(any); String path = "turrets." + Store.id(b);
         if (!plugin.store.data.contains(path)) return;
-        int ammo = plugin.store.data.getInt(path + ".ammo"); plugin.store.set(path, null); plugin.store.save(); nextShot.remove(Store.id(b));
+        int ammo = plugin.ammunition.count(b); plugin.ammunition.forget(b);
+        plugin.store.set(path, null); plugin.store.save(); nextShot.remove(Store.id(b));
         for (int n = ammo; n > 0; n -= 64) b.getWorld().dropItemNaturally(b.getLocation().add(.5, 1, .5), new ItemStack(Material.ARROW, Math.min(64, n)));
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void broken(BlockBreakEvent e) {
         Block b = e.getBlock();
-        if (b.getType() == Material.IRON_BLOCK || b.getBlockData() instanceof LightningRod) plugin.later(() -> {
-            Block possible = b.getType() == Material.IRON_BLOCK ? b : b.getRelative(BlockFace.DOWN);
-            // The old material may already be air; check both registry keys.
-            if (plugin.store.data.contains("turrets." + Store.id(b))) dismantle(b);
-            else if (plugin.store.data.contains("turrets." + Store.id(possible))) dismantle(possible);
-        });
+        if (b.getType() != Material.IRON_BLOCK && !(b.getBlockData() instanceof LightningRod)) return;
+        Block oldBase = base(b);
+        plugin.later(() -> { if (!e.isCancelled() && !structure(oldBase)) dismantle(oldBase); });
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void explode(EntityExplodeEvent e) { e.blockList().forEach(this::dismantle); }

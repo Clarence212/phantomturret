@@ -16,38 +16,30 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
     Hooks hooks;
     TurretMenu menu;
     Turrets turrets;
+    TurretAmmo ammunition;
 
     @Override public void onEnable() {
         saveDefaultConfig();
         store = new Store(this); hooks = new Hooks(this); menu = new TurretMenu(this); turrets = new Turrets(this);
+        ammunition = new TurretAmmo(this);
         Bukkit.getPluginManager().registerEvents(menu, this);
         Bukkit.getPluginManager().registerEvents(turrets, this);
+        Bukkit.getPluginManager().registerEvents(ammunition, this);
         getCommand("phantomturret").setExecutor(this);
         getCommand("phantomturret").setTabCompleter(this);
         Bukkit.getScheduler().runTaskTimer(this, turrets::tick, 1, 1);
         Bukkit.getScheduler().runTaskTimer(this, store::saveIfDirty, 100, 100);
-        reportXtendConflict();
-        getLogger().info("PhantomTurret 1.0.0 enabled for Paper 1.21.11.");
+        getLogger().info("PhantomTurret 1.0.1 enabled for Paper 1.21.11.");
     }
 
     @Override public void onDisable() {
+        if (ammunition != null) ammunition.close();
         if (menu != null) menu.close();
         if (turrets != null) turrets.close();
         if (store != null) store.save();
     }
 
-    private boolean xtendTurretsEnabled() {
-        var xtend = Bukkit.getPluginManager().getPlugin("Xtend");
-        return xtend instanceof JavaPlugin other && other.isEnabled()
-            && other.getConfig().getBoolean("features.turrets", true);
-    }
-
-    private void reportXtendConflict() {
-        if (xtendTurretsEnabled()) getLogger().warning(
-            "Xtend's turret feature is active. Disable features.turrets in Xtend/config.yml and reload Xtend to use PhantomTurret.");
-    }
-
-    boolean enabled() { return getConfig().getBoolean("enabled", true) && !xtendTurretsEnabled(); }
+    boolean enabled() { return getConfig().getBoolean("enabled", true); }
 
     boolean allowed(Player p) {
         return enabled() && p.isOnline() && !p.isDead() && p.getGameMode() != GameMode.SPECTATOR
@@ -67,7 +59,7 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (sender instanceof Player p && (!hooks.authenticated(p) || hooks.vanished(p))) return true;
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
-            if (sender.hasPermission("phantomturret.admin")) { reloadConfig(); reportXtendConflict(); }
+            if (sender.hasPermission("phantomturret.admin")) reloadConfig();
             return true;
         }
         if (sender instanceof Player p && allowed(p)) turrets.openTargeted(p);

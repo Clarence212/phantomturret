@@ -6,5 +6,6 @@ turrets:
   cooldown-ticks: 30
   damage: 6.0
   arrow-speed: 1.6
-  ammo-capacity: 256
   homing: true
+# Ammunition uses 27 chest slots: up to 1,728 regular arrows.
+# Legacy ammo-capacity settings are superseded by this inventory.
