@@ -2,7 +2,7 @@
 
 A standalone plugin for **Paper 1.21.11 and Java 21**.
 
-Version 1.0.2 adds **multiple projectile types** to the shared 27-slot ammunition chest. This repository contains source only. The 1.0.2 source has not been built or gameplay-tested yet.
+Version 1.0.2 adds **multiple projectile types** to the shared 27-slot ammunition chest and allows opening the HUD while holding any item. This repository contains source only. Version 1.0.2 has been compiled with Java 21 against Paper 1.21.11; it has not been gameplay-tested.
 
 ## Install
 
@@ -93,4 +93,6 @@ Output: `target/phantom-turret-1.0.2.jar`. Paper provides the API at runtime; no
 
 ## Source status
 
-The 1.0.2 projectile update is prepared in source only. It has not been compiled or gameplay-tested. Earlier JARs do not contain these changes.
+Version 1.0.2 was successfully compiled and packaged on 2026-10-18 with Java 21 against Paper 1.21.11. Tests were skipped and no live-server gameplay testing was performed. JARs remain excluded from this repository.
+
+The older 1.0.0 JAR requires an empty hand to open the HUD. Updating the source does not update an installed server plugin: replace the old JAR with a built 1.0.2 JAR and restart the server to use held-item interactions, the 27-slot chest, and the additional projectile types.
