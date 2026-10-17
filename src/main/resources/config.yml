@@ -1,0 +1,10 @@
+# No added particles, custom sounds, chat, or action-bar messages.
+enabled: true
+disabled-worlds: []
+turrets:
+  radius: 24
+  cooldown-ticks: 30
+  damage: 6.0
+  arrow-speed: 1.6
+  ammo-capacity: 256
+  homing: true
