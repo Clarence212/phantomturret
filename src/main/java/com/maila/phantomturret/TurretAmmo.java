@@ -22,7 +22,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
-/** One shared, persistent 27-slot ammunition inventory for each turret. */
+/** One shared, persistent 27 slot ammunition inventory for each turret. */
 final class TurretAmmo implements Listener {
     static final int SLOTS = 27;
     private final PhantomTurretPlugin plugin;
@@ -200,7 +200,7 @@ final class TurretAmmo implements Listener {
             accepted = AmmoTypes.supported(event.getCurrentItem());
         }
         if (!accepted) { event.setCancelled(true); return; }
-        // Bukkit applies accepted clicks after the event; save their final slot contents next tick.
+        // Bukkit applies accepted clicks after the event, save their final slot contents next tick.
         saveLater(holder);
     }
 
