@@ -1,9 +1,9 @@
 name: PhantomTurret
-version: 1.0.1
+version: 1.0.2
 main: com.maila.phantomturret.PhantomTurretPlugin
 api-version: '1.21.11'
 author: maila
-description: Iron-block and lightning-rod turrets that fire arrows at phantoms.
+description: Iron-block and lightning-rod turrets that fire loaded projectiles at phantoms.
 softdepend: [AuthMe, SuperVanish]
 commands:
   phantomturret:

@@ -1,11 +1,14 @@
-# No added particles, custom sounds, chat, or action-bar messages.
+# No custom particles, sounds, chat, or action-bar messages. Native projectile visuals may appear.
 enabled: true
 disabled-worlds: []
 turrets:
   radius: 24
   cooldown-ticks: 30
   damage: 6.0
+  # Kept for compatibility; this speed applies to every supported projectile.
   arrow-speed: 1.6
   homing: true
-# Ammunition uses 27 chest slots: up to 1,728 regular arrows.
+# Ammunition uses 27 chest slots with each item's normal stack limit.
+# Accepted: arrows, spectral/tipped arrows, firework rockets, snowballs, eggs (all colors), wind charges.
+# The first occupied slot fires first; one item is consumed per shot.
 # Legacy ammo-capacity settings are superseded by this inventory.

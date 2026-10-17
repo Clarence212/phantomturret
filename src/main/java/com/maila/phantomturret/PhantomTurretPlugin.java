@@ -17,25 +17,29 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
     TurretMenu menu;
     Turrets turrets;
     TurretAmmo ammunition;
+    TurretShots projectiles;
 
     @Override public void onEnable() {
         saveDefaultConfig();
         store = new Store(this); hooks = new Hooks(this); menu = new TurretMenu(this); turrets = new Turrets(this);
         ammunition = new TurretAmmo(this);
+        projectiles = new TurretShots(this);
         Bukkit.getPluginManager().registerEvents(menu, this);
         Bukkit.getPluginManager().registerEvents(turrets, this);
         Bukkit.getPluginManager().registerEvents(ammunition, this);
+        Bukkit.getPluginManager().registerEvents(projectiles, this);
+        projectiles.removeLoadedOrphans();
         getCommand("phantomturret").setExecutor(this);
         getCommand("phantomturret").setTabCompleter(this);
         Bukkit.getScheduler().runTaskTimer(this, turrets::tick, 1, 1);
         Bukkit.getScheduler().runTaskTimer(this, store::saveIfDirty, 100, 100);
-        getLogger().info("PhantomTurret 1.0.1 enabled for Paper 1.21.11.");
+        getLogger().info("PhantomTurret 1.0.2 enabled for Paper 1.21.11.");
     }
 
     @Override public void onDisable() {
         if (ammunition != null) ammunition.close();
         if (menu != null) menu.close();
-        if (turrets != null) turrets.close();
+        if (projectiles != null) projectiles.close();
         if (store != null) store.save();
     }
 

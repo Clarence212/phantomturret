@@ -3,6 +3,7 @@ package com.maila.phantomturret;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -24,8 +25,6 @@ import org.bukkit.inventory.ItemStack;
 /** One shared, persistent 27-slot ammunition inventory for each turret. */
 final class TurretAmmo implements Listener {
     static final int SLOTS = 27;
-    static final int STACK_SIZE = 64;
-    static final int CAPACITY = SLOTS * STACK_SIZE;
     private final PhantomTurretPlugin plugin;
     private final Map<String, Holder> loaded = new HashMap<>();
 
@@ -40,11 +39,6 @@ final class TurretAmmo implements Listener {
 
     TurretAmmo(PhantomTurretPlugin plugin) { this.plugin = plugin; }
     private static String path(Holder holder) { return "turrets." + holder.id; }
-    private static boolean arrow(ItemStack item) {
-        return !Items.empty(item) && item.getType() == Material.ARROW && Items.plain(item)
-            && item.getAmount() <= STACK_SIZE;
-    }
-    private static boolean arrowOrEmpty(ItemStack item) { return Items.empty(item) || arrow(item); }
 
     private Holder get(Block block) {
         Holder holder = loaded.computeIfAbsent(Store.id(block), id -> {
@@ -53,12 +47,12 @@ final class TurretAmmo implements Listener {
             var stored = plugin.store.data.getList(path(created) + ".ammo-inventory");
             if (stored != null) {
                 for (int slot = 0; slot < Math.min(stored.size(), SLOTS); slot++)
-                    if (stored.get(slot) instanceof ItemStack item && arrow(item)) created.inventory.setItem(slot, item.clone());
+                    if (stored.get(slot) instanceof ItemStack item && AmmoTypes.supported(item)) created.inventory.setItem(slot, item.clone());
                 created.legacyOverflow = Math.max(0, plugin.store.data.getInt(path(created) + ".legacy-overflow"));
                 fillLegacyOverflow(created);
             } else {
                 int legacy = Math.max(0, plugin.store.data.getInt(path(created) + ".ammo"));
-                created.legacyOverflow = legacy - put(created, legacy);
+                created.legacyOverflow = legacy - put(created, new ItemStack(Material.ARROW), legacy);
             }
             return created;
         });
@@ -69,26 +63,31 @@ final class TurretAmmo implements Listener {
 
     private static int physicalCount(Holder holder) {
         int count = 0;
-        for (ItemStack item : holder.inventory.getContents()) if (arrow(item)) count += item.getAmount();
+        for (ItemStack item : holder.inventory.getContents()) if (AmmoTypes.supported(item)) count += item.getAmount();
         return count;
     }
 
-    private static int put(Holder holder, int amount) {
+    private static int put(Holder holder, ItemStack template, int amount) {
         int remaining = Math.max(0, amount);
-        for (int slot = 0; slot < SLOTS && remaining > 0; slot++) {
-            ItemStack item = holder.inventory.getItem(slot);
-            if (!arrowOrEmpty(item)) continue;
-            int current = Items.empty(item) ? 0 : item.getAmount();
-            int add = Math.min(remaining, STACK_SIZE - current);
-            if (add <= 0) continue;
-            holder.inventory.setItem(slot, new ItemStack(Material.ARROW, current + add));
-            remaining -= add;
+        // Merge identical items first, then use empty slots. Never merge different potion/rocket data.
+        for (int pass = 0; pass < 2 && remaining > 0; pass++) {
+            for (int slot = 0; slot < SLOTS && remaining > 0; slot++) {
+                ItemStack item = holder.inventory.getItem(slot);
+                boolean empty = Items.empty(item);
+                if (pass == 0 ? empty || !item.isSimilar(template) : !empty) continue;
+                int current = empty ? 0 : item.getAmount();
+                int add = Math.min(remaining, AmmoTypes.stackSize(template) - current);
+                if (add <= 0) continue;
+                ItemStack stack = template.clone(); stack.setAmount(current + add);
+                holder.inventory.setItem(slot, stack); remaining -= add;
+            }
         }
-        return amount - remaining;
+        return Math.max(0, amount) - remaining;
     }
 
     private static void fillLegacyOverflow(Holder holder) {
-        if (holder.legacyOverflow > 0) holder.legacyOverflow -= put(holder, holder.legacyOverflow);
+        if (holder.legacyOverflow > 0)
+            holder.legacyOverflow -= put(holder, new ItemStack(Material.ARROW), holder.legacyOverflow);
     }
 
     private void write(Holder holder) {
@@ -112,23 +111,42 @@ final class TurretAmmo implements Listener {
         return (int) Math.min(Integer.MAX_VALUE, physicalCount(holder) + (long) holder.legacyOverflow);
     }
 
-    int add(Block block, int amount) {
+    int add(Block block, ItemStack item) {
+        if (!AmmoTypes.supported(item)) return 0;
         Holder holder = get(block); fillLegacyOverflow(holder);
-        int added = put(holder, Math.max(0, amount)); write(holder); return added;
+        int added = put(holder, item, item.getAmount()); write(holder); return added;
     }
 
-    int take(Block block, int amount) {
+    ItemStack firstStack(Block block) {
         Holder holder = get(block); fillLegacyOverflow(holder);
-        int remaining = Math.max(0, amount);
-        for (int slot = 0; slot < SLOTS && remaining > 0; slot++) {
+        for (ItemStack item : holder.inventory.getContents())
+            if (AmmoTypes.supported(item)) return item.clone();
+        return null;
+    }
+
+    ItemStack takeFirst(Block block, int maximum) {
+        Holder holder = get(block); fillLegacyOverflow(holder);
+        if (maximum <= 0) return null;
+        for (int slot = 0; slot < SLOTS; slot++) {
             ItemStack item = holder.inventory.getItem(slot);
-            if (!arrow(item)) continue;
-            int take = Math.min(remaining, item.getAmount());
+            if (!AmmoTypes.supported(item)) continue;
+            int take = Math.min(maximum, item.getAmount());
+            ItemStack taken = item.clone(); taken.setAmount(take);
             ItemStack rest = item.clone(); rest.setAmount(item.getAmount() - take);
-            holder.inventory.setItem(slot, rest.getAmount() == 0 ? null : rest); remaining -= take;
+            holder.inventory.setItem(slot, rest.getAmount() == 0 ? null : rest);
+            fillLegacyOverflow(holder); write(holder); return taken;
         }
-        int taken = Math.max(0, amount) - remaining;
-        fillLegacyOverflow(holder); write(holder); return taken;
+        return null;
+    }
+
+    List<ItemStack> contents(Block block) {
+        Holder holder = get(block);
+        List<ItemStack> items = new ArrayList<>();
+        for (ItemStack item : holder.inventory.getContents())
+            if (AmmoTypes.supported(item)) items.add(item.clone());
+        for (int remaining = holder.legacyOverflow; remaining > 0; remaining -= 64)
+            items.add(new ItemStack(Material.ARROW, Math.min(64, remaining)));
+        return items;
     }
 
     void open(Player player, Block block) {
@@ -166,20 +184,20 @@ final class TurretAmmo implements Listener {
         boolean accepted = true;
         if (top) {
             accepted = switch (event.getAction()) {
-                case PLACE_ALL, PLACE_SOME, PLACE_ONE, SWAP_WITH_CURSOR -> arrowOrEmpty(event.getCursor());
+                case PLACE_ALL, PLACE_SOME, PLACE_ONE, SWAP_WITH_CURSOR -> AmmoTypes.supportedOrEmpty(event.getCursor());
                 case HOTBAR_SWAP, HOTBAR_MOVE_AND_READD -> {
                     ItemStack incoming = event.getClick() == org.bukkit.event.inventory.ClickType.SWAP_OFFHAND
                         ? player.getInventory().getItemInOffHand()
                         : event.getHotbarButton() >= 0 && event.getHotbarButton() < 9
                             ? player.getInventory().getItem(event.getHotbarButton()) : null;
-                    yield arrowOrEmpty(incoming);
+                    yield AmmoTypes.supportedOrEmpty(incoming);
                 }
                 case NOTHING, PICKUP_ALL, PICKUP_SOME, PICKUP_HALF, PICKUP_ONE, DROP_ALL_SLOT,
                      DROP_ONE_SLOT, MOVE_TO_OTHER_INVENTORY, COLLECT_TO_CURSOR -> true;
                 default -> false;
             };
         } else if (event.getAction() == org.bukkit.event.inventory.InventoryAction.MOVE_TO_OTHER_INVENTORY) {
-            accepted = arrow(event.getCurrentItem());
+            accepted = AmmoTypes.supported(event.getCurrentItem());
         }
         if (!accepted) { event.setCancelled(true); return; }
         // Bukkit applies accepted clicks after the event; save their final slot contents next tick.
@@ -192,7 +210,7 @@ final class TurretAmmo implements Listener {
             || !(event.getWhoClicked() instanceof Player player)) return;
         if (!canEdit(player, holder)) { event.setCancelled(true); closeLater(player, holder); return; }
         for (var slot : event.getNewItems().entrySet()) {
-            if (slot.getKey() >= 0 && slot.getKey() < SLOTS && !arrow(slot.getValue())) {
+            if (slot.getKey() >= 0 && slot.getKey() < SLOTS && !AmmoTypes.supported(slot.getValue())) {
                 event.setCancelled(true); return;
             }
         }
