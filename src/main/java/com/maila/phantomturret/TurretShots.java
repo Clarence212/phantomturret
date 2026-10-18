@@ -99,7 +99,7 @@ final class TurretShots implements Listener {
                 || !phantom.isValid() || !phantom.getWorld().equals(projectile.getWorld()) || !plugin.enabled()) {
                 remove(projectile); continue;
             }
-            double radius = plugin.decimal("turrets.radius", 24, 1, 64);
+            double radius = plugin.turretRadius();
             if (phantom.getLocation().distanceSquared(shot.origin()) > radius * radius) { remove(projectile); continue; }
             if (plugin.getConfig().getBoolean("turrets.homing", true)) {
                 Vector toward = phantom.getBoundingBox().getCenter().subtract(projectile.getLocation().toVector());

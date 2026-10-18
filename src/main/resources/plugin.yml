@@ -1,5 +1,5 @@
 name: PhantomTurret
-version: 1.1.0
+version: 1.1.1
 main: com.maila.phantomturret.PhantomTurretPlugin
 api-version: '1.20'
 author: maila
@@ -7,9 +7,9 @@ description: Iron-block and lightning-rod turrets that fire loaded projectiles a
 softdepend: [AuthMe, SuperVanish]
 commands:
   phantomturret:
-    description: Open the targeted turret or reload its configuration.
+    description: Open the targeted turret, set turret range, or reload configuration.
     aliases: [pturret]
-    usage: /phantomturret
+    usage: /phantomturret [range <blocks>|reload]
 permissions:
   phantomturret.use: {default: true}
   phantomturret.admin: {default: op}

@@ -67,7 +67,7 @@ final class Turrets implements Listener {
         TurretMenu.Holder h = new TurretMenu.Holder(); h.inventory = Bukkit.createInventory(h, 27, "Phantom Turret");
         int ammo = plugin.ammunition.count(b);
         h.inventory.setItem(11, Items.named(Material.LIGHTNING_ROD, "Phantom Turret", "Ammunition: " + ammo,
-            "Range: " + plugin.decimal("turrets.radius", 24, 1, 64) + " blocks", "Click to open 27 ammunition slots"));
+            "Range: " + plugin.turretRadius() + " blocks", "Click to open 27 ammunition slots"));
         h.actions.put(11, () -> plugin.ammunition.open(p, b));
         h.inventory.setItem(15, Items.named(Material.ARROW, "Withdraw ammunition", "Click to take the first loaded stack"));
         h.actions.put(15, () -> {
@@ -94,8 +94,8 @@ final class Turrets implements Listener {
             int ammo = plugin.ammunition.count(b);
             if (ammo <= 0 || nextShot.getOrDefault(id, 0L) > tick) continue;
             Location muzzle = loc.clone().add(.5, 2.1, .5);
-            double r = plugin.decimal("turrets.radius", 24, 1, 64);
-            Phantom target = loc.getWorld().getNearbyEntities(loc.clone().add(.5, 1, .5), r, r, r).stream()
+            double r = plugin.turretRadius();
+            Phantom target = loc.getWorld().getNearbyEntities(muzzle, r, r, r).stream()
                 .filter(Phantom.class::isInstance).map(Phantom.class::cast)
                 .filter(p -> p.isValid() && p.getLocation().distanceSquared(muzzle) <= r * r && visible(muzzle, p))
                 .min(java.util.Comparator.comparingDouble(p -> p.getLocation().distanceSquared(muzzle))).orElse(null);

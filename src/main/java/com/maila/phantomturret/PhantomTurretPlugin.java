@@ -12,6 +12,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PhantomTurretPlugin extends JavaPlugin implements CommandExecutor, TabCompleter {
+    private static final double DEFAULT_RADIUS = 24;
+    private static final double MIN_RADIUS = 1;
+    private static final double MAX_RADIUS = 64;
     Store store;
     Hooks hooks;
     TurretMenu menu;
@@ -34,7 +37,7 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
         getCommand("phantomturret").setTabCompleter(this);
         Bukkit.getScheduler().runTaskTimer(this, () -> { currentTick++; turrets.tick(); }, 1, 1);
         Bukkit.getScheduler().runTaskTimer(this, store::saveIfDirty, 100, 100);
-        getLogger().info("PhantomTurret 1.1.0 enabled on " + Bukkit.getName() + " " + Bukkit.getBukkitVersion() + ".");
+        getLogger().info("PhantomTurret " + getDescription().getVersion() + " enabled on " + Bukkit.getName() + " " + Bukkit.getBukkitVersion() + ".");
     }
 
     @Override public void onDisable() {
@@ -46,6 +49,7 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
 
     boolean enabled() { return getConfig().getBoolean("enabled", true); }
     long currentTick() { return currentTick; }
+    double turretRadius() { return decimal("turrets.radius", DEFAULT_RADIUS, MIN_RADIUS, MAX_RADIUS); }
 
     boolean allowed(Player p) {
         return enabled() && p.isOnline() && !p.isDead() && p.getGameMode() != GameMode.SPECTATOR
@@ -68,12 +72,26 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
             if (sender.hasPermission("phantomturret.admin")) reloadConfig();
             return true;
         }
+        if (args.length > 0 && args[0].equalsIgnoreCase("range")) {
+            if (args.length != 2 || !sender.hasPermission("phantomturret.admin")) return true;
+            try {
+                double radius = Double.parseDouble(args[1]);
+                if (!Double.isFinite(radius) || radius < MIN_RADIUS || radius > MAX_RADIUS) return true;
+                getConfig().set("turrets.radius", radius);
+                saveConfig();
+            } catch (NumberFormatException ignored) {}
+            return true;
+        }
         if (sender instanceof Player p && allowed(p)) turrets.openTargeted(p);
         return true;
     }
 
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        return args.length == 1 && sender.hasPermission("phantomturret.admin")
-            && "reload".startsWith(args[0].toLowerCase(java.util.Locale.ROOT)) ? List.of("reload") : List.of();
+        if (!sender.hasPermission("phantomturret.admin")) return List.of();
+        if (args.length == 1) return List.of("range", "reload").stream()
+            .filter(option -> option.startsWith(args[0].toLowerCase(java.util.Locale.ROOT))).toList();
+        if (args.length == 2 && args[0].equalsIgnoreCase("range")) return List.of("24", "32", "48", "64").stream()
+            .filter(option -> option.startsWith(args[1])).toList();
+        return List.of();
     }
 }
