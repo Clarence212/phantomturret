@@ -60,7 +60,6 @@ final class Turrets implements Listener {
             held.setAmount(held.getAmount() - take);
         } else open(p, b);
     }
-    void openTargeted(Player p) { Block b = p.getTargetBlockExact(5); if (b != null) open(p, base(b)); }
     private void open(Player p, Block b) {
         if (!plugin.allowed(p) || !structure(b)) return;
         String id = Store.id(b); if (!owned(p, id)) return;

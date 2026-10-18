@@ -1,8 +1,8 @@
-# PhantomTurret 1.1.1
+# PhantomTurret 1.1.2
 
 A standalone Bukkit plugin targeting **Minecraft Java 1.20 (1.20.0) through 26.3** on **CraftBukkit, Spigot, Paper, and compatible forks such as Purpur**.
 
-Version 1.1.1 adds a saved range command and uses one configurable radius for target detection, projectile tracking, and the HUD. The default remains **24 blocks**, and all other default settings are unchanged. It retains the shared **27-slot ammunition chest**, multiple projectile types, and HUD access with any item in hand. The plugin uses Java 17 bytecode and the original Spigot 1.20 API as its baseline. This repository contains source only.
+Version 1.1.2 keeps configuration reload as the only command action and sends the command sender a confirmation after reloading. Set the turret range in YAML; target detection, projectile tracking, and the HUD share that setting. The default remains **24 blocks**, and all other default settings are unchanged. It retains the shared **27-slot ammunition chest**, multiple projectile types, and HUD access with any item in hand. The plugin uses Java 17 bytecode and the original Spigot 1.20 API as its baseline. This repository contains source only.
 
 ## Server compatibility
 
@@ -16,7 +16,7 @@ Version 1.1.1 adds a saved range command and uses one configurable radius for ta
 ## Install
 
 1. Stop your server.
-2. Build the source, then put `phantom-turret-1.1.1.jar` in the server's `plugins` folder. Replace any older PhantomTurret JAR, keep only one copy, and keep the existing data folder.
+2. Build the source, then put `phantom-turret-1.1.2.jar` in the server's `plugins` folder. Replace any older PhantomTurret JAR, keep only one copy, and keep the existing data folder.
 3. Start the server. Configuration and saved turret data appear in `plugins/PhantomTurret`.
 
 No other plugin is required. AuthMe and SuperVanish are optional integrations. Standard Bukkit permissions work with LuckPerms. Vanilla items and inventory menus support Geyser/Floodgate interactions.
@@ -29,7 +29,7 @@ No other plugin is required. AuthMe and SuperVanish are optional integrations. S
 4. Click the **lightning-rod icon** to open the ammo chest.
 5. Put supported projectile items into its slots. Different types can share the chest.
 
-The turret automatically fires at visible phantoms within **24 blocks by default**. Administrators can change the range through `turrets.radius` or `/pturret range <blocks>`. Keep its line of sight clear. Each shot uses one item from the first occupied slot, scanning left to right and then top to bottom. Projectiles track the target, and the turret continues firing until the phantom dies, leaves range, or ammunition runs out.
+The turret automatically fires at visible phantoms within **24 blocks by default**. Administrators can change the range through `turrets.radius` in `config.yml`, then run `/pturret reload`. Keep its line of sight clear. Each shot uses one item from the first occupied slot, scanning left to right and then top to bottom. Projectiles track the target, and the turret continues firing until the phantom dies, leaves range, or ammunition runs out.
 
 - Capacity: **27 slots**, using each item's normal stack limit. Up to **1,728 arrows** or **432 snowballs/eggs**. The ammo chest has no filler icons or buttons.
 - Default interval: 30 ticks, or 1.5 seconds.
@@ -41,7 +41,7 @@ The turret automatically fires at visible phantoms within **24 blocks by default
 - Turret projectiles only damage phantoms. Fired arrows cannot be picked up. A cancelled or failed launch returns the unused item to the chest, or drops it if storage is no longer available.
 - Breaking either part returns unused ammunition. Registered structures cannot be pushed by pistons.
 - Operates in loaded chunks, including while its owner is offline.
-- Adds no chat, action-bar messages, custom particles, or custom sounds. Projectiles are silent; their normal Minecraft visuals, such as tipped-arrow particles and rocket trails, may still appear. The menu displays ammunition and controls.
+- Turret interactions add no chat, action-bar messages, custom particles, or custom sounds. Projectiles are silent; their normal Minecraft visuals, such as tipped-arrow particles and rocket trails, may still appear. The menu displays ammunition and controls. The reload command sends a confirmation only to its sender.
 
 ## Supported ammunition
 
@@ -61,13 +61,11 @@ Every type uses the configured `turrets.damage` value (6 health points by defaul
 
 | Command | Action |
 | --- | --- |
-| `/phantomturret` or `/pturret` | Open the turret you are looking at within 5 blocks. |
-| `/phantomturret range <blocks>` or `/pturret range <blocks>` | Set the range for all turrets immediately and save it to configuration; requires `phantomturret.admin`. |
-| `/phantomturret reload` | Reload configuration; requires `phantomturret.admin`. |
+| `/phantomturret reload` or `/pturret reload` | Reload configuration and confirm to the sender; requires `phantomturret.admin`. |
 
 `phantomturret.use` defaults to everyone. `phantomturret.admin` defaults to operators.
 
-Commands intentionally produce no chat responses. Player actions require AuthMe authentication when AuthMe is installed, and are blocked while vanished. Cancelled interactions are respected.
+After a permitted reload finishes, the player or console that executed it receives `PhantomTurret configuration reloaded.` This is the only command action; open the HUD by right-clicking the turret. Player actions require AuthMe authentication when AuthMe is installed, and are blocked while vanished. Cancelled interactions are respected.
 
 ## Configuration
 
@@ -87,7 +85,7 @@ turrets:
 
 `turrets.radius` is a spherical range in blocks, measured from the firing position. It accepts values from **1 to 64**, including decimals, and defaults to **24**. The existing setting name is retained, so an already customized radius continues to work. Invalid or non-finite config values fall back to 24; numeric values outside the supported interval are clamped to 1 or 64.
 
-Alternatively, run `/pturret range 48` to use a 48-block range immediately and save it across restarts. Run `/pturret range 24` to restore the default. The command rejects invalid or out-of-range values without changing the saved range. This setting applies to every turret; it does not change an individual turret separately. Reopen an already open HUD to see the new range.
+For example, change `radius: 24` to `radius: 48`, save the YAML file, then run `/pturret reload` to use a 48-block range. Set it back to `24` to restore the default. This setting applies to every turret; it does not change an individual turret separately. Reopen an already open HUD to see the new range.
 
 Turret locations, ownership, and ammunition are stored in `plugins/PhantomTurret/data.yml`.
 
@@ -95,7 +93,7 @@ The old `ammo-capacity` option is superseded by the full 27-slot chest. Existing
 
 Existing 1.0.1 ammo inventories load directly, with their slot order preserved. No data reset is needed.
 
-Versions 1.1.0 and 1.1.1 also retain the 1.0.2 data layout. Support for older server versions does not convert newer world or serialized item data for downgrades.
+Versions 1.1.0 through 1.1.2 also retain the 1.0.2 data layout. Support for older server versions does not convert newer world or serialized item data for downgrades.
 
 ## Source and build
 
@@ -105,14 +103,14 @@ Use Java 17 or newer and Maven:
 mvn -Dmaven.test.skip=true package
 ```
 
-Output: `target/phantom-turret-1.1.1.jar`. The server provides the Bukkit API at runtime; no libraries are bundled. JARs, class files, and `target/` are excluded from Git.
+Output: `target/phantom-turret-1.1.2.jar`. The server provides the Bukkit API at runtime; no libraries are bundled. JARs, class files, and `target/` are excluded from Git.
 
 The default dependency is `org.spigotmc:spigot-api:1.20-R0.1-SNAPSHOT`. `spigot-api.version` can be overridden for a separate compatibility build, but release JARs are built against the oldest API.
 
 ## Source status
 
-Version 1.1.1 compiled and packaged successfully against the Spigot **1.20** baseline on 2026-10-19 with Java 17 bytecode. Test compilation and execution were skipped; the new range command has not been tested on a live server.
+Version 1.1.2 compiled and packaged successfully against the Spigot **1.20** baseline on 2026-10-19 with Java 17 bytecode. Test compilation and execution were skipped. Live-server gameplay testing has not been performed for this release.
 
 Version 1.1.0 compiled and packaged successfully against Spigot **1.20, 1.21.11, and 26.3** on 2026-10-18, using Java 17 bytecode. The release JAR is built against the oldest API, 1.20. Test compilation and execution were skipped; no live-server gameplay matrix has been run for this release. JARs remain excluded from this repository.
 
-The older 1.0.0 JAR requires an empty hand to open the HUD. Updating the source does not update an installed server plugin: replace the old JAR with a built 1.1.1 JAR and restart the server to use the range command, compatibility update, and all current features.
+The older 1.0.0 JAR requires an empty hand to open the HUD. Updating the source does not update an installed server plugin: replace the old JAR with a built 1.1.2 JAR and restart the server to use the current command behavior, compatibility update, and all current features.

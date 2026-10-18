@@ -68,30 +68,14 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (sender instanceof Player p && (!hooks.authenticated(p) || hooks.vanished(p))) return true;
-        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
-            if (sender.hasPermission("phantomturret.admin")) reloadConfig();
-            return true;
-        }
-        if (args.length > 0 && args[0].equalsIgnoreCase("range")) {
-            if (args.length != 2 || !sender.hasPermission("phantomturret.admin")) return true;
-            try {
-                double radius = Double.parseDouble(args[1]);
-                if (!Double.isFinite(radius) || radius < MIN_RADIUS || radius > MAX_RADIUS) return true;
-                getConfig().set("turrets.radius", radius);
-                saveConfig();
-            } catch (NumberFormatException ignored) {}
-            return true;
-        }
-        if (sender instanceof Player p && allowed(p)) turrets.openTargeted(p);
+        if (args.length != 1 || !args[0].equalsIgnoreCase("reload") || !sender.hasPermission("phantomturret.admin")) return true;
+        reloadConfig();
+        sender.sendMessage("PhantomTurret configuration reloaded.");
         return true;
     }
 
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!sender.hasPermission("phantomturret.admin")) return List.of();
-        if (args.length == 1) return List.of("range", "reload").stream()
-            .filter(option -> option.startsWith(args[0].toLowerCase(java.util.Locale.ROOT))).toList();
-        if (args.length == 2 && args[0].equalsIgnoreCase("range")) return List.of("24", "32", "48", "64").stream()
-            .filter(option -> option.startsWith(args[1])).toList();
-        return List.of();
+        return args.length == 1 && sender.hasPermission("phantomturret.admin")
+            && "reload".startsWith(args[0].toLowerCase(java.util.Locale.ROOT)) ? List.of("reload") : List.of();
     }
 }
