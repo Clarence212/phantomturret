@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -43,7 +42,7 @@ final class TurretAmmo implements Listener {
     private Holder get(Block block) {
         Holder holder = loaded.computeIfAbsent(Store.id(block), id -> {
             Holder created = new Holder(block);
-            created.inventory = Bukkit.createInventory(created, SLOTS, Component.text("Phantom Turret Ammo"));
+            created.inventory = Bukkit.createInventory(created, SLOTS, "Phantom Turret Ammo");
             var stored = plugin.store.data.getList(path(created) + ".ammo-inventory");
             if (stored != null) {
                 for (int slot = 0; slot < Math.min(stored.size(), SLOTS); slot++)

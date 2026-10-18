@@ -1,6 +1,5 @@
 package com.maila.phantomturret;
 
-import com.destroystokyo.paper.event.entity.ThrownEggHatchEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -9,15 +8,13 @@ import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.damage.DamageSource;
-import org.bukkit.damage.DamageType;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Firework;
+import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Phantom;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.ThrowableProjectile;
-import org.bukkit.entity.WindCharge;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -26,9 +23,9 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.entity.FireworkExplodeEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
-import org.bukkit.event.player.PlayerEggThrowEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
@@ -42,8 +39,8 @@ final class TurretShots implements Listener {
     TurretShots(PhantomTurretPlugin plugin) { this.plugin = plugin; }
 
     private boolean tagged(Entity entity) {
-        return entity.getPersistentDataContainer().has(plugin.key("turret_projectile"))
-            || entity.getPersistentDataContainer().has(plugin.key("turret_arrow"));
+        return entity.getPersistentDataContainer().has(plugin.key("turret_projectile"), PersistentDataType.BYTE)
+            || entity.getPersistentDataContainer().has(plugin.key("turret_arrow"), PersistentDataType.BYTE);
     }
 
     private double speed() { return plugin.decimal("turrets.arrow-speed", 1.6, .5, 3); }
@@ -56,7 +53,7 @@ final class TurretShots implements Listener {
         Vector velocity = direction.normalize().multiply(speed());
         Projectile[] created = new Projectile[1];
         try {
-            Projectile projectile = muzzle.getWorld().spawn(muzzle, AmmoTypes.projectile(ammunition.getType()), entity -> {
+            Projectile projectile = Compatibility.spawn(muzzle, AmmoTypes.projectile(ammunition.getType()), entity -> {
                 created[0] = entity;
                 // Configure and tag before ProjectileLaunchEvent so other plugins can inspect the shot.
                 entity.getPersistentDataContainer().set(plugin.key("turret_projectile"), PersistentDataType.BYTE, (byte) 1);
@@ -64,22 +61,21 @@ final class TurretShots implements Listener {
                 entity.setGravity(!plugin.getConfig().getBoolean("turrets.homing", true));
                 ItemStack item = ammunition.clone(); item.setAmount(1);
                 if (entity instanceof AbstractArrow arrow) {
-                    // Paper derives tipped-arrow potion contents from this complete item stack.
-                    arrow.setItemStack(item);
+                    Compatibility.arrowItem(arrow, item);
                     arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
                     arrow.setCritical(false); arrow.setPierceLevel(0); arrow.setDamage(damage());
                 } else if (entity instanceof Firework firework) {
-                    firework.setItem(item); firework.setShotAtAngle(true);
-                    firework.setTicksFlown(0); firework.setTicksToDetonate(200);
+                    firework.setFireworkMeta((FireworkMeta) item.getItemMeta()); firework.setShotAtAngle(true);
+                    firework.setLife(0); firework.setMaxLife(200);
                 } else if (entity instanceof ThrowableProjectile throwable) {
                     throwable.setItem(item);
-                } else if (entity instanceof WindCharge wind) {
-                    wind.setAcceleration(new Vector()); wind.setIsIncendiary(false); wind.setYield(0);
+                } else if (entity instanceof Fireball wind) {
+                    Compatibility.stopAcceleration(wind); wind.setIsIncendiary(false); wind.setYield(0);
                 }
                 entity.setVelocity(velocity);
             });
             if (!projectile.isValid()) { projectile.remove(); return false; }
-            shots.put(projectile.getUniqueId(), new Shot(target.getUniqueId(), muzzle.clone(), Bukkit.getCurrentTick() + 100L));
+            shots.put(projectile.getUniqueId(), new Shot(target.getUniqueId(), muzzle.clone(), plugin.currentTick() + 100L));
             return true;
         } catch (RuntimeException exception) {
             if (created[0] != null) created[0].remove();
@@ -93,7 +89,7 @@ final class TurretShots implements Listener {
     }
 
     void tick() {
-        long tick = Bukkit.getCurrentTick();
+        long tick = plugin.currentTick();
         for (UUID id : new ArrayList<>(shots.keySet())) {
             Shot shot = shots.get(id);
             if (!(Bukkit.getEntity(id) instanceof Projectile projectile)) { shots.remove(id); continue; }
@@ -141,10 +137,7 @@ final class TurretShots implements Listener {
         try {
             if (allowed) {
                 directDamage.add(projectile.getUniqueId());
-                DamageType type = projectile instanceof Firework ? DamageType.FIREWORKS
-                    : projectile instanceof WindCharge ? DamageType.WIND_CHARGE : DamageType.THROWN;
-                ((Phantom) event.getHitEntity()).damage(damage(), DamageSource.builder(type)
-                    .withDirectEntity(projectile).withCausingEntity(projectile).build());
+                ((Phantom) event.getHitEntity()).damage(damage(), projectile);
             }
         } finally {
             directDamage.remove(projectile.getUniqueId()); remove(projectile);
@@ -168,16 +161,6 @@ final class TurretShots implements Listener {
         if (event.getEntity() instanceof Projectile projectile && tagged(projectile)) {
             event.setCancelled(true); event.blockList().clear(); remove(projectile);
         }
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void hatch(ThrownEggHatchEvent event) {
-        if (tagged(event.getEgg())) { event.setHatching(false); event.setNumHatches((byte) 0); }
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void hatch(PlayerEggThrowEvent event) {
-        if (tagged(event.getEgg())) { event.setHatching(false); event.setNumHatches((byte) 0); }
     }
 
     @EventHandler

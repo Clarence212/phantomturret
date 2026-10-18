@@ -2,7 +2,6 @@ package com.maila.phantomturret;
 
 import java.util.HashMap;
 import java.util.Map;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -45,7 +44,7 @@ final class Turrets implements Listener {
     }
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void interact(PlayerInteractEvent e) {
-        if (!e.getAction().isRightClick() || e.getClickedBlock() == null) return;
+        if (e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null) return;
         Player p = e.getPlayer(); Block b = base(e.getClickedBlock());
         if (!plugin.allowed(p) || !structure(b)) return;
         String id = Store.id(b); if (!owned(p, id)) return;
@@ -65,7 +64,7 @@ final class Turrets implements Listener {
     private void open(Player p, Block b) {
         if (!plugin.allowed(p) || !structure(b)) return;
         String id = Store.id(b); if (!owned(p, id)) return;
-        TurretMenu.Holder h = new TurretMenu.Holder(); h.inventory = Bukkit.createInventory(h, 27, Component.text("Phantom Turret"));
+        TurretMenu.Holder h = new TurretMenu.Holder(); h.inventory = Bukkit.createInventory(h, 27, "Phantom Turret");
         int ammo = plugin.ammunition.count(b);
         h.inventory.setItem(11, Items.named(Material.LIGHTNING_ROD, "Phantom Turret", "Ammunition: " + ammo,
             "Range: " + plugin.decimal("turrets.radius", 24, 1, 64) + " blocks", "Click to open 27 ammunition slots"));
@@ -83,7 +82,7 @@ final class Turrets implements Listener {
     }
     void tick() {
         plugin.projectiles.tick();
-        long tick = Bukkit.getCurrentTick();
+        long tick = plugin.currentTick();
         if (!plugin.enabled() || tick % 5 != 0) return;
         var section = plugin.store.data.getConfigurationSection("turrets"); if (section == null) return;
         for (String id : section.getKeys(false)) {

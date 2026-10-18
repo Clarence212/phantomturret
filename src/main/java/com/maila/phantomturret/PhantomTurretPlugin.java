@@ -18,6 +18,7 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
     Turrets turrets;
     TurretAmmo ammunition;
     TurretShots projectiles;
+    private long currentTick;
 
     @Override public void onEnable() {
         saveDefaultConfig();
@@ -31,9 +32,9 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
         projectiles.removeLoadedOrphans();
         getCommand("phantomturret").setExecutor(this);
         getCommand("phantomturret").setTabCompleter(this);
-        Bukkit.getScheduler().runTaskTimer(this, turrets::tick, 1, 1);
+        Bukkit.getScheduler().runTaskTimer(this, () -> { currentTick++; turrets.tick(); }, 1, 1);
         Bukkit.getScheduler().runTaskTimer(this, store::saveIfDirty, 100, 100);
-        getLogger().info("PhantomTurret 1.0.2 enabled for Paper 1.21.11.");
+        getLogger().info("PhantomTurret 1.1.0 enabled on " + Bukkit.getName() + " " + Bukkit.getBukkitVersion() + ".");
     }
 
     @Override public void onDisable() {
@@ -44,6 +45,7 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
     }
 
     boolean enabled() { return getConfig().getBoolean("enabled", true); }
+    long currentTick() { return currentTick; }
 
     boolean allowed(Player p) {
         return enabled() && p.isOnline() && !p.isDead() && p.getGameMode() != GameMode.SPECTATOR
@@ -54,10 +56,10 @@ public final class PhantomTurretPlugin extends JavaPlugin implements CommandExec
 
     NamespacedKey key(String name) { return new NamespacedKey(this, name); }
     void later(Runnable work) { Bukkit.getScheduler().runTask(this, work); }
-    int integer(String path, int fallback, int min, int max) { return Math.clamp(getConfig().getInt(path, fallback), min, max); }
+    int integer(String path, int fallback, int min, int max) { return Math.max(min, Math.min(max, getConfig().getInt(path, fallback))); }
     double decimal(String path, double fallback, double min, double max) {
         double value = getConfig().getDouble(path, fallback);
-        return Double.isFinite(value) ? Math.clamp(value, min, max) : fallback;
+        return Double.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {

@@ -1,13 +1,22 @@
-# PhantomTurret 1.0.2
+# PhantomTurret 1.1.0
 
-A standalone plugin for **Paper 1.21.11 and Java 21**.
+A standalone Bukkit plugin targeting **Minecraft Java 1.20 (1.20.0) through 26.3** on **CraftBukkit, Spigot, Paper, and compatible forks such as Purpur**.
 
-Version 1.0.2 adds **multiple projectile types** to the shared 27-slot ammunition chest and allows opening the HUD while holding any item. This repository contains source only. Version 1.0.2 has been compiled with Java 21 against Paper 1.21.11; it has not been gameplay-tested.
+Version 1.1.0 removes the Paper requirement while keeping the shared **27-slot ammunition chest**, multiple projectile types, and HUD access with any item in hand. The plugin uses Java 17 bytecode and the original Spigot 1.20 API as its baseline. This repository contains source only.
+
+## Server compatibility
+
+- Target range: **1.20 through 26.3**, the latest stable Java release checked on 2026-10-18. [Minecraft 26.3 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3), [Spigot 26.3 release](https://www.spigotmc.org/threads/spigot-bungeecord-26-3.724398/).
+- Use the Java version required by your server. The plugin itself requires Java 17 or newer.
+- CraftBukkit, Spigot, Paper, and Purpur use the standard Bukkit scheduler and APIs targeted by this build. Folia's region scheduler is not supported.
+- This is a server plugin, not a Fabric/Forge/NeoForge mod or a vanilla-server extension.
+- Ammunition is available only when that item exists in the running server version. Newer projectiles are detected at runtime without loading their classes on older servers.
+- Compatibility builds do not replace live gameplay testing across each server/version combination. Future releases and snapshots are not guaranteed.
 
 ## Install
 
 1. Stop your server.
-2. Build the source, then put `phantom-turret-1.0.2.jar` in the server's `plugins` folder. Replace any older PhantomTurret JAR and keep the existing data folder.
+2. Build the source, then put `phantom-turret-1.1.0.jar` in the server's `plugins` folder. Replace any older PhantomTurret JAR, keep only one copy, and keep the existing data folder.
 3. Start the server. Configuration and saved turret data appear in `plugins/PhantomTurret`.
 
 No other plugin is required. AuthMe and SuperVanish are optional integrations. Standard Bukkit permissions work with LuckPerms. Vanilla items and inventory menus support Geyser/Floodgate interactions.
@@ -43,8 +52,8 @@ The turret automatically fires at visible phantoms within **24 blocks**. Keep it
 | Tipped arrow | Uses the loaded arrow's potion contents and custom effects. |
 | Firework rocket | Flies toward the phantom and deals direct damage; no explosion or area damage. |
 | Snowball | Deals direct damage to the phantom. |
-| Egg, blue egg, brown egg | Deals direct damage; never hatches chickens. |
-| Wind charge | Deals direct damage; no wind burst, nearby knockback, or block activation. |
+| Egg, blue egg, brown egg | Egg-shaped projectiles deal direct damage and never hatch chickens. Colored eggs require a server version that includes them. |
+| Wind charge | Deals direct damage; no wind burst, nearby knockback, or block activation. Available on servers that include wind charges. |
 
 Every type uses the configured `turrets.damage` value (6 health points by default), in addition to the native effects of spectral/tipped arrows when applicable. Minecraft's mob immunities still apply to potion effects. Unsupported items cannot be deposited. Shot lifetime is limited to five seconds.
 
@@ -81,18 +90,22 @@ The old `ammo-capacity` option is superseded by the full 27-slot chest. Existing
 
 Existing 1.0.1 ammo inventories load directly, with their slot order preserved. No data reset is needed.
 
+Version 1.1.0 also retains the 1.0.2 data layout. Support for older server versions does not convert newer world or serialized item data for downgrades.
+
 ## Source and build
 
-Use Java 21 and Maven:
+Use Java 17 or newer and Maven:
 
 ```text
-mvn -DskipTests package
+mvn -Dmaven.test.skip=true package
 ```
 
-Output: `target/phantom-turret-1.0.2.jar`. Paper provides the API at runtime; no libraries are bundled. JARs, class files, and `target/` are excluded from Git.
+Output: `target/phantom-turret-1.1.0.jar`. The server provides the Bukkit API at runtime; no libraries are bundled. JARs, class files, and `target/` are excluded from Git.
+
+The default dependency is `org.spigotmc:spigot-api:1.20-R0.1-SNAPSHOT`. `spigot-api.version` can be overridden for a separate compatibility build, but release JARs are built against the oldest API.
 
 ## Source status
 
-Version 1.0.2 was successfully compiled and packaged on 2026-10-18 with Java 21 against Paper 1.21.11. Tests were skipped and no live-server gameplay testing was performed. JARs remain excluded from this repository.
+Version 1.1.0 compiled and packaged successfully against Spigot **1.20, 1.21.11, and 26.3** on 2026-10-18, using Java 17 bytecode. The release JAR is built against the oldest API, 1.20. Test compilation and execution were skipped; no live-server gameplay matrix has been run for this release. JARs remain excluded from this repository.
 
-The older 1.0.0 JAR requires an empty hand to open the HUD. Updating the source does not update an installed server plugin: replace the old JAR with a built 1.0.2 JAR and restart the server to use held-item interactions, the 27-slot chest, and the additional projectile types.
+The older 1.0.0 JAR requires an empty hand to open the HUD. Updating the source does not update an installed server plugin: replace the old JAR with a built 1.1.0 JAR and restart the server to use the compatibility update and all current features.
