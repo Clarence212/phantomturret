@@ -13,15 +13,7 @@ Version 1.1.2 keeps configuration reload as the only command action and sends th
 - Ammunition is available only when that item exists in the running server version. Newer projectiles are detected at runtime without loading their classes on older servers.
 - Compatibility builds do not replace live gameplay testing across each server/version combination. Future releases and snapshots are not guaranteed.
 
-## Install
-
-1. Stop your server.
-2. Build the source, then put `phantom-turret-1.1.2.jar` in the server's `plugins` folder. Replace any older PhantomTurret JAR, keep only one copy, and keep the existing data folder.
-3. Start the server. Configuration and saved turret data appear in `plugins/PhantomTurret`.
-
-No other plugin is required. AuthMe and SuperVanish are optional integrations. Standard Bukkit permissions work with LuckPerms. Vanilla items and inventory menus support Geyser/Floodgate interactions.
-
-## Build and use a turret
+## Usage
 
 1. Place **one iron block**.
 2. Place a **copper lightning rod upright on top**.
@@ -31,7 +23,6 @@ No other plugin is required. AuthMe and SuperVanish are optional integrations. S
 
 The turret automatically fires at visible phantoms within **24 blocks by default**. Administrators can change the range through `turrets.radius` in `config.yml`, then run `/pturret reload`. Keep its line of sight clear. Each shot uses one item from the first occupied slot, scanning left to right and then top to bottom. Projectiles track the target, and the turret continues firing until the phantom dies, leaves range, or ammunition runs out.
 
-- Capacity: **27 slots**, using each item's normal stack limit. Up to **1,728 arrows** or **432 snowballs/eggs**. The ammo chest has no filler icons or buttons.
 - Default interval: 30 ticks, or 1.5 seconds.
 - Default damage: 6 health points.
 - The first player to open the ammo chest or load the turret owns its ammunition controls. Operators can administer other players' turrets without taking ownership.
@@ -78,7 +69,7 @@ turrets:
   radius: 24
   cooldown-ticks: 30
   damage: 6.0
-  # Applies to all supported projectile types; the existing setting name is retained.
+  #Applies to all supported projectile types
   arrow-speed: 1.6
   homing: true
 ```
